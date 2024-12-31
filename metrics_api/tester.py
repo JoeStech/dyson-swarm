@@ -9,7 +9,7 @@ payload = {
 }
 
 # Send POST request to the API
-r = requests.post('https://5clf7fssda.execute-api.us-west-2.amazonaws.com/prod/', data=payload)
+r = requests.post('https://5clf7fssda.execute-api.us-west-2.amazonaws.com/prod/', json=payload)
 
 # Print the response
 print(r.status_code)

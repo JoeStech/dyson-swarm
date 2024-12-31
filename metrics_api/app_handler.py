@@ -1,7 +1,7 @@
 import psycopg2
 import json
-import urllib.parse
 import os
+import hashlib
 
 def handler(event, context):
     conn = psycopg2.connect(
@@ -15,18 +15,21 @@ def handler(event, context):
     print(event)
     if event['httpMethod'] == 'POST':
         body = event.get('body')
-        parsed_body = urllib.parse.parse_qs(body)
+        parsed_body = json.loads(body)
         print(parsed_body)
         sql = """
                     INSERT INTO metrics 
                     (player_id, session_id, stage_completed, signed_up)
                     VALUES (%s, %s, %s, %s)
                 """
-        if parsed_body['signed_up'] == ['true']:
-            signed_up = True
-        else:
-            signed_up = False
-        cur.execute(sql, (parsed_body['player_id'][0], parsed_body['session_id'][0], int(parsed_body['stage_completed'][0]), signed_up))
+
+        ip = event['requestContext']['identity']['sourceIp']
+
+        # hash the ip address to create a player id
+        player_id = hashlib.sha256(ip.encode()).hexdigest()
+        print(f"player_id: {player_id}")
+        
+        cur.execute(sql, (player_id, parsed_body['session_id'], parsed_body['stage_completed'], parsed_body['signed_up']))
         conn.commit()
 
     return {
