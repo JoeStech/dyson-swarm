@@ -18,14 +18,14 @@ A prerequisite for deployment of the metrics backend is the AWS CDK CLI installe
 
 ## Future improvements
 
-mass rate expenditures in metrics panel
-net mass rate in metrics panel
-create button to slowly convert mining rigs instead of all at once
-visual issue with buying cylinders in stage 4 when you don't have enough money 
-final message doesn't fit mobile screen
-fix mining platform cost when switching to mass driver company
-don't allow fractions of a shipyard, etc in swarm stage
-spot fix certain buttons for balance
+* mass rate expenditures in metrics panel
+* net mass rate in metrics panel
+* create button to slowly convert mining rigs instead of all at once
+* visual issue with buying cylinders in stage 4 when you don't have enough money 
+* final message doesn't fit mobile screen
+* fix mining platform cost when switching to mass driver company
+* don't allow fractions of a shipyard, etc in swarm stage
+* spot fix certain buttons for balance
 
 ## NOTES
 
