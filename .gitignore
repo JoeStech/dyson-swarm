@@ -169,3 +169,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+environment.sh
+metrics_api/cdk/cdk.out/
+metrics_api/cdk/cdk.out/*

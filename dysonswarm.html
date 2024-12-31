@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dyson Swarm: A hard science fiction incremental game where you ultimately build a swarm of o'neill cylinders to harness the energy of the sun. Explore advanced technologies and manage resources in this narrative-driven game.">
+    <meta name="keywords" content="Dyson Swarm, hard science fiction, megastructure, space game, resource management, strategic simulation, incremental game">
+    <meta name="author" content="Joe Stech">
+    <meta name="robots" content="index, follow">
+    <title>Dyson Swarm Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <script type="module">
+        import { initRocketLaunch } from './rocketLaunch.js';
+        import { initMatterStreaming } from './matterStreaming.js';
+        import { initSatellites } from './satellites.js';
+        import { BUTTON_CONFIG } from './buttonFunctions.js';
+        import { initFutureViz } from './futureViz.js';
+        window.initRocketLaunch = initRocketLaunch;
+        window.initMatterStreaming = initMatterStreaming;
+        window.initSatellites = initSatellites;
+        window.BUTTON_CONFIG = BUTTON_CONFIG;
+        window.initFutureViz = initFutureViz;
+    </script>
+    <style>
+            body {
+                background-color: rgb(243, 244, 246);
+                font-family: "Roboto Mono", monospace;
+            }
+
+            button {
+                clip-path: polygon(
+                    0 10px,
+                    10px 0,
+                    calc(100% - 10px) 0,
+                    100% 10px,
+                    100% calc(100% - 10px),
+                    calc(100% - 10px) 100%,
+                    10px 100%,
+                    0 calc(100% - 10px)
+                );
+                border: 1px solid #00ff00;
+                background-color: #002200 !important;
+                color: #00ff00 !important;
+                text-shadow: 0 0 5px #00ff00;
+                transition: all 0.2s ease;
+            }
+
+            button:hover {
+                background-color: #003300 !important;
+                box-shadow: 0 0 10px #00ff00;
+            }
+
+            #rocketLaunchContainer canvas {
+                border: 1px solid #00ff00;
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            }
+
+            .modal {
+                background-color: #001100;
+                border: 1px solid #00ff00;
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            }
+
+            #infoPanel, #executivePanel {
+                background-color: #001100 !important;
+                border: 1px solid #00ff00;
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            }
+
+            #logContainer {
+                background-color: #001100 !important;
+                border: 1px solid #00ff00;
+                color: #00ff00;
+            }
+
+            .floating-text {
+                color: #00ff00;
+                text-shadow: 0 0 5px #00ff00;
+            }
+
+            #infoPanel {
+                color: #00ff00;
+            }
+
+            #executivePanel {
+                color: #00ff00;
+            }
+
+            /* Add scanline effect */
+            body::after {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(
+                    transparent 50%,
+                    rgba(0, 255, 0, 0.02) 50%
+                );
+                background-size: 100% 4px;
+                pointer-events: none;
+                z-index: 9999;
+            }
+
+            body {
+                animation: flicker 0.05s infinite alternate;
+            }
+
+            /* Modify progress bar colors */
+            #swarmProgress {
+                background-color: #001100 !important;
+                border: 1px solid #00ff00;
+                color: #00ff00;
+            }
+
+            #swarmProgressBar {
+                background-color: #004400 !important;
+            }
+
+            /* Update link colors */
+            a {
+                color: #00ff00 !important;
+                text-decoration: underline;
+            }
+
+            a:hover {
+                color: #00aa00 !important;
+                text-shadow: 0 0 5px #00ff00;
+            }
+            .retro-button {
+                clip-path: polygon(
+                    0 10px,
+                    10px 0,
+                    calc(100% - 10px) 0,
+                    100% 10px,
+                    100% calc(100% - 10px),
+                    calc(100% - 10px) 100%,
+                    10px 100%,
+                    0 calc(100% - 10px)
+                );
+                border: 1px solid #00ff00;
+                background-color: #002200 !important;
+                color: #00ff00 !important;
+                text-shadow: 0 0 5px #00ff00;
+                transition: all 0.2s ease;
+            }
+
+            .retro-button:hover {
+                background-color: #003300 !important;
+                box-shadow: 0 0 10px #00ff00;
+            }
+
+            .retro-button.unaffordable {
+                opacity: 0.5;
+                cursor: not-allowed;
+                filter: grayscale(100%);
+                text-shadow: none;
+            }
+
+        .floating-text {
+            position: absolute;
+            animation: floatUp 1s ease-out;
+            pointer-events: none;
+        }
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+        .fixed-width-font {
+            font-family: "Roboto Mono", monospace;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+
+        .modal {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            z-index: 1002;
+            text-align: center;
+            max-width: 600px;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-text {
+            font-size: 1.5rem;
+            line-height: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .modal-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .modal-button:hover {
+            background-color: #45a049;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+    <div class="relative lg:absolute lg:top-4 lg:right-4 mb-4 lg:mb-0 text-center">
+        <button id="startOverButton" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+            Start Over
+        </button>
+    </div>
+    <div class="text-center mb-4 max-w-3xl">
+        <p id="game-top-text1" class="text-lg mb-2 game-top-text">
+            You are a game developer who dreams of building an O'Neill Cylinder, an idyllic spinning space habitat where you and your loved ones can live in utopia. The only way to accomplish your goal is to sell as many video games as possible, inspiring the public along the way.
+        </p><p id="game-top-text2" class="text-lg mb-2 game-top-text">
+            Your guiding document is Gerard K. O'Neill's original 1974 paper <a class="text-blue-500 hover:text-blue-700" href="https://nss.org/the-colonization-of-space-gerard-k-o-neill-physics-today-1974/">"The Colonization of Space"</a>, and his subsequent book "The High Frontier".
+        </p>
+        <div>
+            <h2 id="cashOnHandText" class="text-2xl font-bold mb-1 game-top-text">Cash on hand</h2>
+            <div id="counter" class="text-4xl font-bold fixed-width-font game-top-text">$0</div>
+        </div>
+    </div>
+
+    <div id="futureVizContainer" class="fixed inset-0 hidden" style="z-index: 1000;"></div>
+
+    <div class="w-full flex flex-col lg:flex-row lg:flex-wrap">
+        <!-- Column 1: Info Panel (initially hidden) -->
+        <div class="w-full lg:w-1/5 p-4">
+            <div id="infoPanel" class="bg-white p-4 rounded shadow-lg hidden">
+                <h3 class="mb-2">Business Metrics</h3>
+                <p class="fixed-width-font text-sm" id="currentDateTime"></p>
+                <p id="cashOnHandMetric" class="font-bold fixed-width-font"></p>
+                <p id="massOnHandMetric" class="font-bold fixed-width-font"></p>
+                <p id="profit" class="mt-2 fixed-width-font"></p>
+                <p id="netMassRate" class="mt-2 fixed-width-font"></p>
+                <p id="massRate" class="mt-2 fixed-width-font"></p>
+                <p id="massExpenditures" class="mt-2 fixed-width-font"></p>
+                <p id="habitatProductionRate" class="font-bold fixed-width-font"></p>
+                <p id="trust" class="mt-2 fixed-width-font">Trust: 0</p>
+                <p id="onlineAds" class="mt-2 fixed-width-font"></p>
+                <p id="marketers" class="mt-2 fixed-width-font"></p>
+                <p id="rocketContracts" class="mt-2 fixed-width-font"></p>
+                <p id="regolithContracts" class="mt-2 fixed-width-font"></p>
+                <p id="massDrivers1" class="mt-2 fixed-width-font"></p>
+                <p id="massDrivers2" class="mt-2 fixed-width-font"></p>
+                <p id="miningPlatforms" class="mt-2 fixed-width-font"></p>
+                <p id="shipyards" class="mt-2 fixed-width-font"></p>
+                <button id="sellShipyardsButton" class="retro-button mt-2 text-sm w-full">Dismantle a Shipyard</button>
+                <p id="humans" class="mt-2 fixed-width-font"></p>
+            </div>
+        </div>
+
+        <!-- Column 2: Game animations -->
+        <div class="w-full lg:w-1/5 p-4">
+            <div id="rocketLaunchContainer" class="hidden w-full flex justify-center items-center"></div>
+            <div id="matterStreamingContainer" class="hidden w-full flex justify-center items-center mt-4"></div>
+            <div id="swarmContainer" class="hidden w-full flex justify-center items-center mt-4"></div>
+            <div id="swarmProgress" class="hidden bg-gray-200 rounded-full overflow-hidden relative h-8">
+                <div id="swarmProgressBar" class="bg-purple-600 transition-all duration-500 absolute h-full"></div>
+                <div id="swarmProgressText" class="text-center text-sm absolute w-full h-full flex items-center justify-center z-10"></div>
+            </div>
+        </div>
+
+        <!-- Column 3: Main Game Actions -->
+        <div class="w-full lg:w-1/5 p-4 flex flex-col items-center">
+            
+            
+            <button id="clickButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-full text-base mb-4 transition-all duration-200 transform hover:scale-105 relative">
+                Sell a copy of your game
+            </button>
+            <div id="logContainer" class="w-full max-h-96 overflow-y-auto bg-gray-100 p-4 rounded hidden">
+                <div id="log" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- Column 4: Executive Decisions (initially hidden) -->
+        <div class="w-full lg:w-2/5 p-4">
+            <div id="executivePanel" class="bg-white p-4 rounded shadow-lg hidden">
+                <h3 class="font-bold mb-2">Executive Decisions</h3>
+                <div class="flex flex-col space-y-2">
+                    <div id="advancedDecisions" class="hidden grid grid-cols-2 gap-2">
+                        <button id="buyOnlineAdButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="hireCFOButton" class="main-action retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="developNewGameButton" class="main-action retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="hireMarketerButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="launchBlockbusterButton" class="main-action retro-button font-bold py-2 px-4 rounded hidden relative">
+                        </button>
+                        <button id="profitSharingButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="educationalGameButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="startFamilyOfficeButton" class="main-action retro-button font-bold py-2 px-4 rounded hidden relative">
+                        </button>
+                        <button id="charityEventButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="employeeWellnessButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="communityOutreachButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="sustainabilityInitiativeButton" class="retro-button font-bold py-2 px-4 rounded relative">
+                        </button>
+                        <button id="initiateWordOfMouthButton" class="main-action retro-button font-bold py-2 px-4 rounded hidden relative">
+                        </button>
+                        <button id="sellCompanyButton" class="retro-button font-bold py-2 px-4 rounded relative hidden">
+                            Sell your game company for a 10x multiple of yearly profit and start a space company
+                        </button>
+                    </div>
+                    <div id="stage2Decisions" class="hidden grid grid-cols-2 gap-2">
+                        <button id="rocketPropulsionButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="launchContractsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="reusableRocketsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="roboticSatelliteButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="regolithMiningButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="regolithContractsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="regolithProcessingButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="regolithSolarPanelsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        
+                        <button id="regolithBatteriesButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="regolithSuperconductorButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="carbonCaptureButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="donatePayloadsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="livestreamRecoveriesButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="fundDebrisTrackingButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="beamSolarPowerButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="provideDisasterDataButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="openSourceBatteryButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="convinceGovernmentsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                    </div>
+                    <div id="stage3Decisions" class="hidden flex flex-col space-y-2">
+                        <button id="regolithContractsButtonStage3" class="retro-button font-bold py-2 px-4 rounded w-full relative"></button>
+                        <button id="rotaryPelletCannonButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="transportLinearAcceleratorButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="advancedAlloysButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="dynamicMagneticLevitationButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="increasedBatteryDrawButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="magneticFieldHypercontrolButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="advancedCoolingSystemsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="selfRepairingStructuresButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="completeCylinderButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                    </div>
+                    <div id="stage4Decisions" class="hidden flex flex-col space-y-2">
+                        <button id="asteroidMiningButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="platform1Button" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="shipyardButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="gasGiantButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="moonsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="solarNetworkButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="vonNeumannButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="planetDismantlingButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="volunteersButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="vonNeumann2Button" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="starLiftingButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="repurposeMiningPlatformsButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                        <button id="quantumShipyardOptimizationButton" class="retro-button font-bold py-2 px-4 rounded w-full relative">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const rocketLaunch =initRocketLaunch('rocketLaunchContainer');
+    const matterStreaming = initMatterStreaming('matterStreamingContainer');
+    const swarm = initSatellites('swarmContainer');
+    let gameState = {}
+
+    const logGameEvent = async ({ playerId, sessionId, stageCompleted, signedUp }) => {
+        try {
+            await fetch('https://5clf7fssda.execute-api.us-west-2.amazonaws.com/prod/', {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                player_id: playerId,
+                session_id: sessionId,
+                stage_completed: stageCompleted,
+                signed_up: signedUp
+            })
+            });
+        } catch {
+            console.log("error logging game event");
+        }
+    };
+
+    const getPlayerIdFromIP = async () => {
+        try {
+            // Get the IP address using a free IP lookup service
+            const response = await fetch('https://api.ipify.org?format=json');
+            const { ip } = await response.json();
+            console.log(ip);
+            
+            // Create a namespace UUID
+            const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd567c8';
+            
+            // Generate a v5 UUID using the IP as the name
+            const playerId = uuid.v5(ip, NAMESPACE);
+            
+            return playerId;
+        } catch {
+            // If IP lookup fails, use a known placeholder id as a fallback
+            return 'placeholder-id-bad-lookup';
+        }
+    };
+
+    const playerId = getPlayerIdFromIP();
+    console.log("playerId");
+    console.log(playerId);
+
+
+    function resetState() {
+        console.log("resetState");
+        gameState = {
+            sessionId: crypto.randomUUID(),
+            playerId: playerId,
+            screenColor: "",
+            firstClick: true,
+            money: 0,
+            matter: 0,
+            lastTimestamp: Date.now(),
+            onlineads: 0,
+            adPrice: 100,
+            hasAnalyst: false,
+            gameDays: 0,
+            marketers: 0,
+            adEffectiveness: 1,
+            gamePrice: 10,
+            trust: 0,
+            profitSharingActive: false,
+            blockbusterMultiplier: 1,
+            familyOfficeActive: false,
+            marketingTeamGrowth: 0.20,
+            marketingTeamClicks: 0,
+            wordOfMouthActive: false,
+            wordOfMouthMultiplier: 1,
+            isGameCompany: true,
+            isSpaceCompany: false,
+            isMassDriverCompany: false,
+            isSwarmCompany: false,
+            launchContracts: 0,
+            launchProfit: 1,
+            regolithMining: false,
+            regolithContracts: 0,
+            regolithProfit: 1,
+            rocketPrice: 50000000,
+            regolithPrice: 50000000,
+            massDrivers1: 0,
+            massDrivers2: 0,
+            massDriverOutput1: 10,
+            massDriverOutput2: 1000,
+            miningPlatforms: 0,
+            miningPlatformOutput: 1e+9,
+            shipyards: 0,
+            satellites: 1,
+            satelliteCost: 10000000000,
+            humans: 0,
+            volunteers: false,
+            vonNeumann: false,
+            vonNeumann2: false,
+            shipyardOutput: 1,
+            massCapHit: false,
+            buttonStates: {},
+            buttonInitialization: {},
+            gameOver: false,
+            elementVisibility: {
+                executivePanel: false,
+                advancedDecisions: false,
+                logContainer: false,
+                infoPanel: false,
+                massRate: false,
+                massExpenditures: false,
+                netMassRate: false,
+                massOnHandMetric: false,
+                rocketContracts: false,
+                regolithContracts: false,
+                cashOnHandMetric: false,
+                habitatProductionRate: false,
+                massDrivers1: false,
+                massDrivers2: false,
+                miningPlatforms: false,
+                shipyards: false,
+                humans: false,
+                clickButton: true,
+                onlineAds: true,
+                marketers: true,
+                rocketLaunchContainer: false,
+                swarmContainer: false,
+                matterStreamingContainer: false,
+                swarmProgress: false,
+                sellShipyardsButton: false,
+            },
+            log_messages: []
+        };
+
+        // Reset button text from config
+        Object.keys(BUTTON_CONFIG).forEach(buttonId => {
+            const button = document.getElementById(buttonId);
+            const config = BUTTON_CONFIG[buttonId];
+            if (button && config) {
+                button.innerHTML = config.text;
+            }
+        });
+
+        logGameEvent({
+            playerId: playerId,
+            sessionId: gameState.sessionId,
+            stageCompleted: 0,
+            signedUp: false
+        });
+    }
+
+    function getElement(id) {
+        const element = document.getElementById(id);
+        if (!element) {
+            console.error(`Element with id '${id}' not found`);
+        }
+        return element;
+    }
+
+    const buyOnlineAdButton = getElement('buyOnlineAdButton');
+    const clickButton = getElement('clickButton');
+    const counterElement = getElement('counter');
+    const executivePanel = getElement('executivePanel');
+    const infoPanel = getElement('infoPanel');
+    const advancedDecisions = getElement('advancedDecisions');
+    const startOverButton = getElement('startOverButton');
+    const rocketLaunchContainer = getElement('rocketLaunchContainer');
+    const logContainer = getElement('logContainer');
+    const adsElement = getElement('onlineAds');
+    const marketersElement = getElement('marketers');
+    const rocketContractsElement = getElement('rocketContracts');
+    const regolithContractsElement = getElement('regolithContracts');
+    const massDrivers1Element = getElement('massDrivers1');
+    const massDrivers2Element = getElement('massDrivers2');
+
+    loadGame();
+    console.log(gameState);
+    if (!gameState || Object.keys(gameState).length === 0) {
+        console.log("No game state found or empty state, resetting");
+        resetState();
+        saveGame();
+    }
+
+    function handleButton(buttonId, loadGame = false) {
+        const button = document.getElementById(buttonId);
+        const config = BUTTON_CONFIG[buttonId];
+        
+        if (!button || !config) return;
+
+        // Add this check to prevent multiple event listeners
+        if (button.hasAttribute('data-initialized')) {
+            return;
+        }
+        button.setAttribute('data-initialized', 'true');
+
+        // Check initialization state from gameState instead of dataset
+        if (gameState.buttonInitialization.hasOwnProperty(buttonId) && gameState.buttonInitialization[buttonId] && !loadGame) return;
+        gameState.buttonInitialization[buttonId] = true;
+
+        // Set initial button text
+        button.innerHTML = config.text;
+
+        if (!gameState.buttonStates) gameState.buttonStates = {};
+        if (!gameState.buttonStates.hasOwnProperty(buttonId)) {
+            gameState.buttonStates[buttonId] = false;
+        }
+
+        if (!gameState.elementVisibility) gameState.elementVisibility = {};
+        if (!gameState.elementVisibility.hasOwnProperty(buttonId)) {
+            gameState.elementVisibility[buttonId] = false;
+        }
+
+        button.addEventListener('click', () => {
+            let canAfford = false;
+            let costDisplay = '';
+            let cost = 0;
+
+            if (typeof config.cost === 'function') {
+                cost = config.cost(gameState);
+            } else {
+                cost = config.cost;
+            }
+            
+            // Check if player can afford based on cost type
+            switch(config.cost_type) {
+                case 'cash':
+                    canAfford = gameState.money >= cost;
+                    costDisplay = `-$${cost.toLocaleString()}`;
+                    break;
+                case 'mass':
+                    canAfford = gameState.matter >= cost;
+                    costDisplay = `-${cost.toLocaleString()} tons`;
+                    break;
+                case 'trust':
+                    canAfford = gameState.trust >= cost;
+                    costDisplay = `-${cost.toLocaleString()} trust`;
+                    break;
+            }
+
+            if (canAfford) {
+                // Deduct cost based on type
+                switch(config.cost_type) {
+                    case 'cash':
+                        gameState.money -= cost;
+                        break;
+                    case 'mass':
+                        gameState.matter -= cost;
+                        break;
+                    case 'trust':
+                        gameState.trust -= cost;
+                        break;
+                }
+
+                // Execute button-specific action
+                const result = config.action(gameState);
+                if (result) {
+                    updateCounter();
+                    updateBusinessMetrics();
+                    showFloatingText(button, costDisplay, 'text-red-500');
+
+                    // Handle button updates if any were returned
+                    if (result.hasOwnProperty('buttonUpdates')) {
+                        if (result.buttonUpdates.text !== null) {
+                            button.innerHTML = result.buttonUpdates.text;
+                        }
+                        if (result.buttonUpdates.hide) {
+                            setElementVisibility(buttonId, false);
+                        }
+                    }
+                    
+                    // Only show log message and handle unlocks if this is the first click
+                    if (!gameState.buttonStates[buttonId]) {
+                        if (config.logMessage) addLogMessage(config.logMessage);
+                        if (config.unlocks) {
+                            config.unlocks.forEach(elementId => setElementVisibility(elementId, true));
+                        }
+                        gameState.buttonStates[buttonId] = true;
+                    }
+
+                    // Hide button after use if it's not repeatable
+                    if (!config.repeatable) {
+                        setElementVisibility(buttonId, false);
+                    }
+
+                    if (config.stageTransition === 'beginMassDriverStage') {
+                        beginMassDriverStage();
+                    } else if (config.stageTransition === 'beginSwarmStage') {
+                        beginSwarmStage();
+                    }
+                }
+            } else {
+                showFloatingText(button, "Can't afford this", 'text-red-500');
+            }
+        });
+    }
+
+    console.log("re-initializing buttons");
+    // Initialize all buttons
+    Object.keys(BUTTON_CONFIG).forEach(buttonId => {
+        handleButton(buttonId);
+    });
+
+    function updateButtonAffordability() {
+        Object.keys(BUTTON_CONFIG).forEach(buttonId => {
+            const button = document.getElementById(buttonId);
+            const config = BUTTON_CONFIG[buttonId];
+            
+            if (!button || !config) return;
+            
+            let cost = typeof config.cost === 'function' ? config.cost(gameState) : config.cost;
+            let canAfford = false;
+
+            switch(config.cost_type) {
+                case 'cash':
+                    canAfford = gameState.money >= cost;
+                    break;
+                case 'mass':
+                    canAfford = gameState.matter >= cost;
+                    break;
+                case 'trust':
+                    canAfford = gameState.trust >= cost;
+                    break;
+            }
+
+            if (canAfford) {
+                button.classList.remove('unaffordable');
+            } else {
+                button.classList.add('unaffordable');
+            }
+        });
+    }
+
+
+    function addLogMessage(message) {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'p-2 mb-2';
+        logEntry.textContent = message;
+        
+        const separator = document.createElement('hr');
+        separator.className = 'border-t border-gray-300 my-2';
+        
+        logContainer.insertBefore(separator, logContainer.firstChild);
+        logContainer.insertBefore(logEntry, logContainer.firstChild);
+        gameState.log_messages.push(message);
+    }
+
+    function rebuildLogDisplay() {
+    // Clear existing content in logContainer
+    logContainer.innerHTML = '';
+    
+    // Iterate through messages in reverse order since we want newest first
+    gameState.log_messages.slice().reverse().forEach(message => {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'p-2 mb-2';
+        logEntry.textContent = message;
+        
+        const separator = document.createElement('hr');
+        separator.className = 'border-t border-gray-300 my-2';
+        
+        logContainer.appendChild(logEntry);
+        logContainer.appendChild(separator);
+        });
+    }
+
+    function setElementVisibility(elementId, isVisible) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (isVisible) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+            gameState.elementVisibility[elementId] = isVisible;
+        } else {
+            console.error(`Element with id '${elementId}' not found`);
+        }
+    }
+
+    function syncElementVisibility() {
+        for (const [elementId, isVisible] of Object.entries(gameState.elementVisibility)) {
+            setElementVisibility(elementId, isVisible);
+        }
+    }
+
+    function syncGameState() {
+        document.body.style.backgroundColor = gameState.screenColor;
+        document.querySelectorAll('.game-top-text').forEach(element => {
+            element.style.color = gameState.textColor;
+        });
+        syncElementVisibility();
+
+        if (gameState.money >= 100) {
+            setElementVisibility('executivePanel',true);
+        }
+
+        setElementVisibility('infoPanel', gameState.hasAnalyst);
+
+        rebuildLogDisplay();
+    }
+
+
+    function calculateProfit() {
+        let investment_multiplier = 1;
+        if (gameState.familyOfficeActive) {
+            investment_multiplier = 2;
+        }
+        if (gameState.wordOfMouthActive) {
+            gameState.wordOfMouthMultiplier = 100;
+        }
+        
+        let profit = 0;
+        if (gameState.isSpaceCompany) {
+            profit = gameState.rocketPrice * gameState.launchContracts * gameState.launchProfit * gameState.wordOfMouthMultiplier * investment_multiplier + gameState.regolithPrice * gameState.regolithProfit * gameState.regolithContracts;
+        } else if (gameState.isGameCompany) {
+            profit = gameState.onlineads * gameState.gamePrice * gameState.adEffectiveness * gameState.blockbusterMultiplier * gameState.wordOfMouthMultiplier * investment_multiplier;
+        } else if (gameState.isMassDriverCompany) {
+            profit = gameState.regolithPrice * gameState.regolithProfit * gameState.regolithContracts;
+        }
+
+        if (gameState.profitSharingActive) {
+            profit *= 0.9; // 10% reduction due to profit sharing
+        }
+        return Math.floor(profit);
+    }
+
+    function calculateMassRate() {
+        // Base rates for each type of mass driver
+        const rotaryPelletRate = gameState.massDriverOutput1; 
+        const linearAcceleratorRate = gameState.massDriverOutput2;
+        
+        // Calculate total mass movement rate
+        const totalRate = (
+            (gameState.massDrivers1) * rotaryPelletRate +
+            (gameState.massDrivers2) * linearAcceleratorRate +
+            (gameState.miningPlatforms) * gameState.miningPlatformOutput
+        );
+        
+        // Apply any multipliers from research or upgrades
+        let multiplier = 1;
+        if (gameState.advancedAlloys) multiplier *= 2;
+        if (gameState.dynamicMagneticLevitation) multiplier *= 2;
+        if (gameState.increasedBatteryDraw) multiplier *= 2;
+        if (gameState.magneticFieldHypercontrol) multiplier *= 2;
+        if (gameState.advancedCoolingSystems) multiplier *= 2;
+        if (gameState.selfRepairingStructures) multiplier *= 1.5;
+        
+        return Math.floor(totalRate * multiplier);
+    }
+
+    function updateCounter() {
+        if (counterElement) {
+            if (gameState.isGameCompany || gameState.isSpaceCompany) {
+                const money = Math.floor(gameState.money);
+                counterElement.textContent = `$${money.toLocaleString()}${money > 1000000 ? ` (${money.toExponential(2)})` : ''}`;
+            } else if (gameState.isMassDriverCompany) {
+                const matter = Math.floor(gameState.matter);
+                counterElement.textContent = `${matter.toLocaleString()} tons${matter > 1000000 ? ` (${matter.toExponential(2)})` : ''}`;
+            } else if (gameState.isSwarmCompany) {
+                const satellites = Math.floor(gameState.satellites);
+                counterElement.textContent = `${satellites.toLocaleString()} habitats${satellites > 1000000 ? ` (${satellites.toExponential(2)})` : ''}`;
+            }
+        }
+        if (gameState.isSpaceCompany) {
+            rocketLaunch.setRocketRate(gameState.launchContracts/10);
+        }
+        if (gameState.isMassDriverCompany) {
+            matterStreaming.setParticleRate(Math.sqrt(gameState.massDriverOutput1*gameState.massDrivers1 + gameState.massDriverOutput2*gameState.massDrivers2)/100);
+        }
+        if (gameState.isSwarmCompany) {
+            swarm.setSatelliteCount(gameState.satellites < 3550 ? gameState.satellites : Math.log10(gameState.satellites) * 1000);
+        }
+        saveGame();
+    }
+
+    function showFloatingText(button, text, colorClass) {
+        const floatingText = document.createElement('div');
+        floatingText.textContent = text;
+        floatingText.className = `floating-text ${colorClass} font-bold`;
+        floatingText.style.left = `${button.offsetLeft + button.offsetWidth / 2}px`;
+        floatingText.style.top = `${button.offsetTop}px`;
+        document.body.appendChild(floatingText);
+        setTimeout(() => floatingText.remove(), 1000);
+    }
+
+
+    function sellGameCopy() {
+        gameState.money += gameState.gamePrice * gameState.blockbusterMultiplier;
+        updateCounter();
+        showFloatingText(clickButton, `+$${(gameState.gamePrice * gameState.blockbusterMultiplier).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'text-green-500');
+        setElementVisibility('buyOnlineAdButton', true);
+        if (gameState.firstClick) {
+            setElementVisibility('logContainer', true);
+            addLogMessage("You've sold your first game by cold emailing a bunch of random strangers until one of them took pity on you and purchased it. Congratulations! Keep up the good work.");
+            gameState.firstClick = false;
+        }
+        if (gameState.money >= 100) {
+            setElementVisibility('executivePanel',true);
+            setElementVisibility('advancedDecisions',true);
+        }
+    }
+
+    function sellRocketLaunch() {
+        if (gameState.isSpaceCompany) {
+            const launchProfit = gameState.rocketPrice * gameState.launchProfit * gameState.wordOfMouthMultiplier;
+            gameState.money += launchProfit;
+            updateCounter();
+            showFloatingText(clickButton, `+$${launchProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'text-green-500');
+            rocketLaunch.triggerSingleLaunch();
+        }
+    }
+
+    function buildONeillCylinder() {
+        let matterCost = gameState.satelliteCost;
+        gameState.matter -= matterCost;
+        gameState.satellites += 1;
+        gameState.totalHumans += 200000;
+        updateCounter();
+        showFloatingText(clickButton, `-${matterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'text-red-500');
+    }
+
+    if (clickButton) {
+        clickButton.addEventListener('click', sellGameCopy);
+    }
+
+    function sellCompanyAndStartSpaceCompany() {
+        const profit = calculateProfit();
+        const saleValue = profit * 10 * 8760;
+        addLogMessage(`You've sold your game company for $${saleValue.toLocaleString()}! The money is nice, but even more satisfying is knowing that you proved the haters wrong.`);
+        gameState.money += saleValue;
+        gameState.isGameCompany = false;
+        gameState.isSpaceCompany = true;
+
+        // Fade background to black and invert text colors
+        document.body.style.transition = 'background-color 2s, color 2s';
+
+        setGameStage('space');
+
+        // Reset profit to zero
+        gameState.wordOfMouthMultiplier = 1;
+        gameState.wordOfMouthActive = false;
+        gameState.familyOfficeActive = false;
+        gameState.profitSharingActive = false;
+
+        // Update business metrics
+        updateBusinessMetrics();
+
+        // Change "sell a copy of your game" button to "Sell a rocket launch" button
+        if (clickButton) {
+            clickButton.removeEventListener('click', sellGameCopy);
+            clickButton.addEventListener('click', sellRocketLaunch);
+        }
+
+        // Hide the sell company button
+        if (sellCompanyButton) {
+            setElementVisibility('sellCompanyButton',false);
+        }
+
+        // show rocket research button
+        setElementVisibility('rocketPropulsionButton', true);
+
+        updateCounter();
+        saveGame();
+
+        logGameEvent({
+            playerId: gameState.playerId,
+            sessionId: gameState.sessionId,
+            stageCompleted: 1,
+            signedUp: false
+        });
+    }
+
+    const sellCompanyButton = document.getElementById('sellCompanyButton');
+    if (sellCompanyButton) {
+        sellCompanyButton.addEventListener('click', sellCompanyAndStartSpaceCompany);
+    }
+
+    function beginMassDriverStage() {
+        addLogMessage(`You have started construction of your first mass driver on the moon! This is an almost incomprehensible responsibility. If rogue elements were to wrest control of it, they could rain death and devastation on the earth. You must prevent this at all costs.\n\nYou now control such vast resources that money as a unit of measurement is no longer meaningful. You have stopped selling new contracts for regolith, and started stockpiling mass for the mass driver. Metric tons of matter located at earth-moon L5 are now your basic unit of account.`);
+        gameState.isSpaceCompany = false;
+        gameState.isMassDriverCompany = true;
+        document.body.style.transition = 'background-color 2s, color 2s';
+
+        setGameStage('massDriver');
+
+        // Update business metrics
+        updateBusinessMetrics();
+        updateCounter();
+        saveGame();
+
+        logGameEvent({
+            playerId: gameState.playerId,
+            sessionId: gameState.sessionId,
+            stageCompleted: 2,
+            signedUp: false
+        });
+    }
+
+    function beginSwarmStage() {
+        document.body.style.transition = 'background-color 2s, color 2s';
+        gameState.isMassDriverCompany = false;
+        gameState.isSwarmCompany = true;
+
+        setGameStage('swarm');
+
+        if (clickButton) {
+            clickButton.removeEventListener('click', sellRocketLaunch);
+            clickButton.addEventListener('click', buildONeillCylinder);
+        }
+
+        setElementVisibility('asteroidMiningButton', true);
+
+        // Update business metrics
+        updateBusinessMetrics();
+
+        updateCounter();
+        saveGame();
+
+        logGameEvent({
+            playerId: gameState.playerId,
+            sessionId: gameState.sessionId,
+            stageCompleted: 3,
+            signedUp: false
+        });
+    }
+
+    const sellShipyardsButton = document.getElementById('sellShipyardsButton');
+    if (sellShipyardsButton) {
+        sellShipyardsButton.addEventListener('click', () => {
+            if (gameState.shipyards > 0) {
+                const massGained = 1e12;
+                gameState.shipyards -= 1;
+                gameState.matter += massGained;
+                showFloatingText(sellShipyardsButton, `+${massGained.toExponential(2)} tons`, 'text-green-500');
+            } else {
+                showFloatingText(sellShipyardsButton, "No shipyards to sell", 'text-red-500');
+            }
+        });
+    }
+
+
+    function winGame() {
+        gameState.gameOver = true;
+        // Create fullscreen overlay
+        const futureViz = initFutureViz('futureVizContainer');
+        
+        // Show the visualization container
+        document.getElementById('futureVizContainer').classList.remove('hidden');
+        
+        // Start the visualization
+        futureViz.start();
+        
+        // Add victory message
+        addLogMessage("You've achieved the ultimate goal! ");
+        
+        // Create and show the modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        
+        const modalText = document.createElement('p');
+        modalText.className = 'modal-text';
+        modalText.textContent = "You have assured the future of humanity. The solar system has been transformed into a vast network of habitats, and humanity has reached the stars. Von Neumann probes are now spreading throughout the galaxy, seeding new civilizations. Thank you for playing!";
+        
+        const modalButton = document.createElement('button');
+        modalButton.className = 'modal-button';
+        modalButton.textContent = 'Start Over';
+        modalButton.onclick = () => {
+            if (confirm("Are you sure you want to start over? This will reset all your progress.")) {
+                localStorage.removeItem('dysonSwarmGameState');
+                location.reload();
+            }
+        };
+        
+        modal.appendChild(modalText);
+        modal.appendChild(modalButton);
+        document.body.appendChild(modal);
+
+        logGameEvent({
+            playerId: gameState.playerId,
+            sessionId: gameState.sessionId,
+            stageCompleted: 4,
+            signedUp: false
+        });
+    }
+
+    if (startOverButton) {
+        startOverButton.addEventListener('click', () => {
+            if (confirm("Are you sure you want to start over? This will reset all your progress.")) {
+                // Remove the saved game state
+                localStorage.removeItem('dysonSwarmGameState');
+                
+                // Reset all game variables
+                resetState(gameState);
+
+                // Initialize all buttons
+                Object.keys(BUTTON_CONFIG).forEach(buttonId => {
+                    handleButton(buttonId);
+                });
+
+                document.querySelectorAll('.game-top-text').forEach(element => {
+                    element.style.color = 'black';
+                });
+
+                document.querySelector('#game-top-text1').innerHTML = "You are a game developer who dreams of building an O'Neill Cylinder, an idyllic spinning space habitat where you and your loved ones can live in utopia. The only way to accomplish your goal is to sell as many video games as possible, inspiring the public along the way.";
+                document.querySelector('#game-top-text2').innerHTML = 'Your guiding document is Gerard K. O\'Neill\'s original 1974 paper <a class="text-blue-500 hover:text-blue-700" href="https://nss.org/the-colonization-of-space-gerard-k-o-neill-physics-today-1974/">"The Colonization of Space"</a>, and his subsequent book "The High Frontier".';
+
+                //clear all log messages
+                logContainer.innerHTML = "";
+
+                // Reset UI elements
+                syncGameState();
+
+                // Reset background color and text color
+                document.body.style.backgroundColor = '';
+                document.body.style.color = '';
+
+                // Reset click button text
+                if (clickButton) {
+                    clickButton.textContent = 'Sell a copy of your game';
+                    clickButton.removeEventListener('click', sellRocketLaunch);
+                    clickButton.addEventListener('click', sellGameCopy);
+                }
+
+                // Update the UI
+                updateCounter();
+                updateBusinessMetrics();
+                updateDateTime();
+            }
+        });
+    }
+
+    function updateElement(id, text) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = text;
+        } else {
+            console.error(`Element with id '${id}' not found`);
+        }
+    };
+
+    function updateBusinessMetrics() {
+        
+        // Update trust
+        updateElement('trust', `Trust: ${gameState.trust.toLocaleString()}`);
+
+        if (gameState.isGameCompany) {
+            let profit = calculateProfit()
+            updateElement('profit', `Profit: $${profit < 1000000 ? profit.toLocaleString() : profit.toExponential(3)}/cycle`);
+            updateElement('onlineAds', `Online ads: ${gameState.onlineads < 1000000 ? gameState.onlineads.toLocaleString() : gameState.onlineads.toExponential(3)}`);
+            updateElement('marketers', `Marketers: ${gameState.marketers < 1000000 ? gameState.marketers.toLocaleString() : gameState.marketers.toExponential(3)}`);
+        } else if (gameState.isSpaceCompany) {
+            let profit = calculateProfit()
+            updateElement('profit', `Profit: $${profit < 1000000 ? profit.toLocaleString() : profit.toExponential(3)}/cycle`);
+            updateElement('rocketContracts', `Rocket contracts: ${gameState.launchContracts < 1000000 ? gameState.launchContracts.toLocaleString() : gameState.launchContracts.toExponential(3)}`);
+            updateElement('regolithContracts', `Regolith contracts: ${gameState.regolithContracts < 1000000 ? gameState.regolithContracts.toLocaleString() : gameState.regolithContracts.toExponential(3)}`);
+        } else if (gameState.isMassDriverCompany) {
+            let profit = calculateProfit()
+            updateElement('profit', `Profit: $${profit < 1000000 ? profit.toLocaleString() : profit.toExponential(3)}/cycle`);
+            let massRate = calculateMassRate()
+            updateElement('massRate', `Mass rate: ${massRate < 1000000 ? massRate.toLocaleString() : massRate.toExponential(3)} tons/cycle`);
+            updateElement('regolithContracts', `Regolith contracts: ${gameState.regolithContracts < 1000000 ? gameState.regolithContracts.toLocaleString() : gameState.regolithContracts.toExponential(3)}`);
+            updateElement('cashOnHandMetric', `Cash on hand: $${Math.round(gameState.money) < 1000000 ? Math.round(gameState.money).toLocaleString() : Math.round(gameState.money).toExponential(3)}`);
+            updateElement('massDrivers1', `Rotary pellet cannons: ${gameState.massDrivers1 < 1000000 ? gameState.massDrivers1.toLocaleString() : gameState.massDrivers1.toExponential(3)}`);
+            updateElement('massDrivers2', `Transport linear accelerators: ${gameState.massDrivers2 < 1000000 ? gameState.massDrivers2.toLocaleString() : gameState.massDrivers2.toExponential(3)}`);
+        } else if (gameState.isSwarmCompany) {
+            let massRate = calculateMassRate()
+
+            updateElement('massRate', `Mass rate: ${massRate < 1000000 ? massRate.toLocaleString() : massRate.toExponential(3)} tons/cycle`);
+            updateElement('humans', `Total humans: ${gameState.humans < 1000000 ? gameState.humans.toLocaleString() : gameState.humans.toExponential(3)}`);
+            updateElement('massOnHandMetric', `Mass on hand: ${gameState.matter < 1000000 ? gameState.matter.toLocaleString() : gameState.matter.toExponential(3)} tons`);
+        }
+
+    }
+
+
+    function updateDateTime() {
+        const element = document.getElementById('currentDateTime');
+        if (element) {
+            element.textContent = `Cycle ${Math.floor(gameState.gameDays)}`;
+        } else {
+            console.error("Element with id 'currentDateTime' not found");
+        }
+    }
+
+    function setGameStage(stage) {   
+        // Configure stage-specific elements
+        switch(stage) {
+            case 'game':
+                // Reset background color and text color
+                document.body.style.backgroundColor = '';
+                document.body.style.color = '';
+
+                document.getElementById('cashOnHandText').textContent = "Cash on hand";
+                document.querySelector('#game-top-text1').innerHTML = "You are a game developer who dreams of building an O'Neill Cylinder, an idyllic spinning space habitat where you and your loved ones can live in utopia. The only way to accomplish your goal is to sell as many video games as possible, inspiring the public along the way.";
+                document.querySelector('#game-top-text2').innerHTML = 'Your guiding document is Gerard K. O\'Neill\'s original 1974 paper <a class="text-blue-500 hover:text-blue-700" href="https://nss.org/the-colonization-of-space-gerard-k-o-neill-physics-today-1974/">"The Colonization of Space"</a>, and his subsequent book "The High Frontier".';
+                
+                if (clickButton) {
+                    clickButton.textContent = 'Sell a copy of your game';
+                    setElementVisibility('clickButton', true);
+                }
+                setElementVisibility('advancedDecisions', gameState.money >= 100);
+                break;
+
+            case 'space':
+                document.body.style.backgroundColor = '#030f69';
+                gameState.screenColor = '#030f69';
+                gameState.textColor = 'white';
+                
+                setElementVisibility('advancedDecisions', false);
+                setElementVisibility('stage2Decisions', true);
+                setElementVisibility('rocketLaunchContainer', true);
+                setElementVisibility('onlineAds', false);
+                setElementVisibility('marketers', false);
+                setElementVisibility('rocketContracts', true);
+                setElementVisibility('regolithContracts', true);
+                
+                if (clickButton) {
+                    clickButton.textContent = 'Sell a rocket launch';
+                    setElementVisibility('clickButton', true);
+                }
+                break;
+
+            case 'massDriver':
+                document.getElementById('cashOnHandText').textContent = "Metric tons of matter";
+                document.body.style.backgroundColor = 'black';
+                gameState.screenColor = 'black';
+
+                setElementVisibility('stage2Decisions', false);
+                setElementVisibility('stage3Decisions', true);
+                setElementVisibility('rocketLaunchContainer', false);
+                setElementVisibility('matterStreamingContainer', true);
+                setElementVisibility('rocketContracts', false);
+                setElementVisibility('rotaryPelletCannonButton', true);
+                setElementVisibility('completeCylinderButton', true);
+                setElementVisibility('cashOnHandMetric', true);
+                setElementVisibility('massDrivers1', true);
+                setElementVisibility('massDrivers2', true);
+                setElementVisibility('clickButton', false);
+                break;
+
+            case 'swarm':
+                document.getElementById('cashOnHandText').textContent = "Total O'Neill habitats in the swarm";
+                document.body.style.backgroundColor = 'black';
+                gameState.screenColor = 'black';
+                
+                document.querySelector('#game-top-text1').innerHTML = "You have achieved utopia for yourself and your descendents! Walking through the lush, perfect gardens of your space habitat, you realize that your work is not done. You can see the towns dotting the forested landscape as the ground curves up and away from you in the distance, and while the thousands that live on your cylinder have assured futures, there are billions more on earth that could be wiped out by a rogue asteroid or supervolcano. It is your moral imperative to provide utopia for the rest of humanity.";
+                document.querySelector('#game-top-text2').innerHTML = "You are starting to feel your age, so you decide to go into cryostatis and wake up once a year to direct operations going forward. If your efforts are successful, humanity will flourish, with civilization growing to quintillions of individuals. You will dismantle the solar system to build millions of planets worth of these glorious fields and woodlands, threaded by winding rivers and capped by mountains. With a population of ten quintillion, even the most niche of hobbies will have billions of enthusiasts. The future of humanity will be assured.";
+                
+                setElementVisibility('stage3Decisions', false);
+                setElementVisibility('stage4Decisions', true);
+                setElementVisibility('matterStreamingContainer', false);
+                setElementVisibility('swarmContainer', true);
+                setElementVisibility('cashOnHandMetric', false);
+                setElementVisibility('rocketContracts', false);
+                setElementVisibility('regolithContracts', false);
+                setElementVisibility('massDrivers1', false);
+                setElementVisibility('massDrivers2', false);
+                setElementVisibility('cashOnHandMetric', false);
+                setElementVisibility('trust', false);
+                setElementVisibility('massOnHandMetric', true);
+                setElementVisibility('habitatProductionRate', true);
+                setElementVisibility('massRate', true);
+                setElementVisibility('miningPlatforms', true);
+                setElementVisibility('shipyards', true);
+                setElementVisibility('sellShipyardsButton', true);
+                setElementVisibility('humans', true);
+                setElementVisibility('swarmProgress', true);
+                
+                if (clickButton) {
+                    clickButton.innerHTML = 'Build O\'Neill Cylinder<br>cost: 1E10 tons';
+                    setElementVisibility('clickButton', true);
+                }
+                break;
+        }
+
+        document.querySelectorAll('.game-top-text').forEach(element => {
+            element.style.color = gameState.textColor;
+        });
+    }
+
+    function saveGame() {
+        localStorage.setItem('dysonSwarmGameState', JSON.stringify(gameState));
+    }
+    function loadGame() {
+        const savedState = localStorage.getItem('dysonSwarmGameState');
+        if (savedState) {
+            gameState = JSON.parse(savedState);
+            const currentTime = Date.now();
+            const timeDifference = (currentTime - gameState.lastTimestamp) / 1000;
+
+            // Calculate offline resources
+            if (timeDifference > 0) {
+                // Calculate offline money
+                const offlineProfit = calculateProfit() * timeDifference;
+                gameState.money += offlineProfit;
+
+                // Calculate offline mass for mass driver and swarm companies
+                if (gameState.isMassDriverCompany || gameState.isSwarmCompany) {
+                    const offlineMass = calculateMassRate() * timeDifference;
+                    gameState.matter += offlineMass;
+                }
+            }
+
+            // Set the appropriate game stage
+            if (gameState.isSwarmCompany) {
+                setGameStage('swarm');
+            } else if (gameState.isMassDriverCompany) {
+                setGameStage('massDriver');
+            } else if (gameState.isSpaceCompany) {
+                setGameStage('space');
+            } else {
+                console.log("loading game, setting to game");
+                setGameStage('game');
+            }
+
+            // Re-initialize all buttons
+            Object.keys(BUTTON_CONFIG).forEach(buttonId => {
+                handleButton(buttonId, true);
+            });
+
+            console.log("loaded game, syncing");
+            syncGameState();
+            updateCounter();
+            updateBusinessMetrics();
+        } else {
+            resetState();
+            setGameStage('game');
+        }
+    }
+
+    // Game loop updates every tenth of a second (100ms)
+    setInterval(() => {
+        // if game is over, stop the loop
+        if (gameState.gameOver) {
+            return;
+        }
+
+        let speedMultiplier = 1;
+
+        const currentTime = Date.now();
+        const timeDifference = (currentTime - gameState.lastTimestamp) / 1000; // Convert to seconds
+
+        if (gameState.isGameCompany || gameState.isSpaceCompany) {
+            const profit = calculateProfit() * timeDifference * speedMultiplier;
+            gameState.money += profit;
+        } else if (gameState.isMassDriverCompany) {
+            const massrate = calculateMassRate()
+            const mass = massrate * timeDifference * speedMultiplier;
+            gameState.matter += mass;
+            const profit = calculateProfit() * timeDifference * speedMultiplier;
+            gameState.money += profit;
+            if (massrate > 1e+9) {
+                setElementVisibility('completeCylinderButton', true);
+            }
+        } else if (gameState.isSwarmCompany) {
+            if (!gameState.massCapHit) {
+                if (gameState.matter > 1e+25) {
+                    gameState.massCapHit = true;
+                    addLogMessage("You now have ten times as much mass as you need to completely envelop the sun in habitats. You are now able to repurpose your mining platforms to construct habitats.");
+                    setElementVisibility('repurposeMiningPlatformsButton', true);
+                } else {
+                    const mass = calculateMassRate() * timeDifference * speedMultiplier;
+                    gameState.matter += mass;
+                }
+            }
+        }
+
+        gameState.lastTimestamp = currentTime;
+
+        // Update swarm progress indicator
+        if (gameState.isSwarmCompany) {
+            const targetCylinders = 3e+14;
+            const progress = (gameState.satellites / targetCylinders) * 100;
+            const progressBar = document.getElementById('swarmProgressBar');
+            const progressText = document.getElementById('swarmProgressText');
+            if (progressBar && progressText) {
+                progressBar.style.width = `${Math.min(progress, 100)}%`;
+                progressText.textContent = `Swarm progress: ${(progress).toFixed(8)}% (${gameState.satellites.toExponential(2)}/${targetCylinders.toExponential(2)} cylinders)`;
+            }
+            
+            // Check for victory condition
+            if (gameState.satellites >= targetCylinders && !gameState.victoryAchieved) {
+                gameState.victoryAchieved = true;
+                winGame();
+            }
+        }
+
+        // Add shipyard production
+        if (gameState.isSwarmCompany) {
+            const matterCost = gameState.satelliteCost; // Cost per cylinder
+            const maxPossibleProduction = Math.floor(gameState.matter / matterCost); // How many we can afford
+            const shipyardCapacity = gameState.shipyards * gameState.shipyardOutput; // How many we can produce
+            
+            // Create as many as we can afford, up to shipyard capacity
+            let actualProduction = Math.min(maxPossibleProduction, shipyardCapacity);
+
+            if (gameState.volunteers) {
+                actualProduction *= Math.log10(gameState.humans);
+            }
+            
+            gameState.satellites += actualProduction;
+            gameState.matter -= (actualProduction * matterCost);
+
+
+            updateElement('habitatProductionRate', `Habitat production rate: ${actualProduction < 1000000 ? actualProduction.toLocaleString() : actualProduction.toExponential(3)}/cycle`);
+
+            if (gameState.vonNeumann) {
+                gameState.miningPlatforms *= 1.01;
+            }
+            if (gameState.vonNeumann2) {
+                gameState.shipyards *= 1.01;
+            }
+
+            gameState.humans = gameState.satellites * 200000;
+            updateElement('humans', `Total humans: ${gameState.humans < 1000000 ? gameState.humans.toLocaleString() : gameState.humans.toExponential(3)}`);
+
+            updateElement('miningPlatforms', `Mining platforms: ${gameState.miningPlatforms < 1000000 ? gameState.miningPlatforms.toLocaleString() : gameState.miningPlatforms.toExponential(3)}`);
+            updateElement('shipyards', `Shipyards: ${gameState.shipyards < 1000000 ? gameState.shipyards.toLocaleString() : gameState.shipyards.toExponential(3)}`);
+        }
+
+        updateCounter();
+        if (gameState.hasAnalyst) updateBusinessMetrics();
+        gameState.gameDays += timeDifference * speedMultiplier;
+        updateDateTime();
+        updateButtonAffordability();
+    }, 100);
+
+    updateCounter();
+    updateDateTime();
+    syncGameState();
+});
+    </script>
+</body>
+</html>
