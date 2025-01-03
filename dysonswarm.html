@@ -159,6 +159,13 @@
                 text-shadow: none;
             }
 
+            #clickButton.unaffordable {
+                opacity: 0.5;
+                cursor: not-allowed;
+                filter: grayscale(100%);
+                text-shadow: none;
+            }
+
         .floating-text {
             position: absolute;
             animation: floatUp 1s ease-out;
@@ -724,6 +731,16 @@
                 button.classList.add('unaffordable');
             }
         });
+
+        // The "Build O'neill Cylinder" is unique, it is a core clickButton, but unlike the other
+        // core buttons ("Sell Game", "Launch Rocket") it has a $ cost. So it needs a custom unaffordable toggle.
+        if (gameState.isSwarmCompany) {
+            if(gameState.satelliteCost > gameState.matter) { // using same check as in buildONeillCylinder()
+                clickButton.classList.add('unaffordable')
+            } else {
+                clickButton.classList.remove('unaffordable')
+            }
+        }
     }
 
 
@@ -924,11 +941,16 @@
 
     function buildONeillCylinder() {
         let matterCost = gameState.satelliteCost;
-        gameState.matter -= matterCost;
-        gameState.satellites += 1;
-        gameState.totalHumans += 200000;
-        updateCounter();
-        showFloatingText(clickButton, `-${matterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'text-red-500');
+        if(matterCost > gameState.matter) {
+            showFloatingText(clickButton, "Can't afford this", 'text-red-500');
+            updateCounter();
+        } else {
+            gameState.matter -= matterCost;
+            gameState.satellites += 1;
+            gameState.totalHumans += 200000;
+            updateCounter();
+            showFloatingText(clickButton, `-${matterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, 'text-red-500');
+        }
     }
 
     if (clickButton) {
