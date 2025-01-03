@@ -1435,8 +1435,10 @@
         if (gameState.isSwarmCompany) {
             let massExpenditures = calculateMassExpenditures() * timeDifference * speedMultiplier;
 
-            gameState.satellites += Math.floor(massExpenditures/gameState.satelliteCost);
-            gameState.matter -= massExpenditures;
+            if (gameState.matter > massExpenditures) {
+                gameState.satellites += Math.floor(massExpenditures/gameState.satelliteCost);
+                gameState.matter -= massExpenditures;
+            }
 
             if (gameState.vonNeumann && !gameState.massCapHit) {
                 gameState.miningPlatforms = Math.floor(gameState.miningPlatforms * 1.01);
