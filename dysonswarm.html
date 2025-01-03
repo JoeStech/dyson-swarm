@@ -843,6 +843,23 @@
         return Math.floor(totalRate * multiplier);
     }
 
+    function calculateMassExpenditures() {
+        const matterCost = gameState.satelliteCost; // Cost per cylinder
+        const maxPossibleProduction = Math.floor(gameState.matter / matterCost); // How many we can afford
+        const shipyardCapacity = gameState.shipyards * gameState.shipyardOutput; // How many we can produce
+        
+        // Create as many as we can afford, up to shipyard capacity
+        let actualProduction = Math.min(maxPossibleProduction, shipyardCapacity);
+
+        if (gameState.volunteers) {
+            actualProduction *= Math.log10(gameState.humans);
+        }
+
+        updateElement('habitatProductionRate', `Habitat production rate: ${actualProduction < 1000000 ? actualProduction.toLocaleString() : actualProduction.toExponential(3)}/cycle`);
+        
+        return actualProduction * matterCost;
+    }
+
     function updateCounter() {
         if (counterElement) {
             if (gameState.isGameCompany || gameState.isSpaceCompany) {
@@ -1158,9 +1175,15 @@
             updateElement('massDrivers1', `Rotary pellet cannons: ${gameState.massDrivers1 < 1000000 ? gameState.massDrivers1.toLocaleString() : gameState.massDrivers1.toExponential(3)}`);
             updateElement('massDrivers2', `Transport linear accelerators: ${gameState.massDrivers2 < 1000000 ? gameState.massDrivers2.toLocaleString() : gameState.massDrivers2.toExponential(3)}`);
         } else if (gameState.isSwarmCompany) {
-            let massRate = calculateMassRate()
-
-            updateElement('massRate', `Mass rate: ${massRate < 1000000 ? massRate.toLocaleString() : massRate.toExponential(3)} tons/cycle`);
+            let massRate = 0;
+            if (!gameState.massCapHit) {
+                massRate = calculateMassRate()
+                updateElement('massRate', `Mass mining rate: ${Math.abs(massRate) < 1000000 ? massRate.toLocaleString() : massRate.toExponential(3)} tons/cycle`);
+            }
+            let massExpenditures = calculateMassExpenditures()
+            let netMassRate = massRate - massExpenditures
+            updateElement('netMassRate', `Net mass rate: ${Math.abs(netMassRate) < 1000000 ? netMassRate.toLocaleString() : netMassRate.toExponential(3)} tons/cycle`);
+            updateElement('massExpenditures', `Mass expenditures: ${Math.abs(massExpenditures) < 1000000 ? massExpenditures.toLocaleString() : massExpenditures.toExponential(3)} tons/cycle`);
             updateElement('humans', `Total humans: ${gameState.humans < 1000000 ? gameState.humans.toLocaleString() : gameState.humans.toExponential(3)}`);
             updateElement('massOnHandMetric', `Mass on hand: ${gameState.matter < 1000000 ? gameState.matter.toLocaleString() : gameState.matter.toExponential(3)} tons`);
         }
@@ -1231,6 +1254,7 @@
                 setElementVisibility('massDrivers1', true);
                 setElementVisibility('massDrivers2', true);
                 setElementVisibility('clickButton', false);
+                setElementVisibility('massRate', true);
                 break;
 
             case 'swarm':
@@ -1255,6 +1279,8 @@
                 setElementVisibility('massOnHandMetric', true);
                 setElementVisibility('habitatProductionRate', true);
                 setElementVisibility('massRate', true);
+                setElementVisibility('netMassRate', true);
+                setElementVisibility('massExpenditures', true);
                 setElementVisibility('miningPlatforms', true);
                 setElementVisibility('shipyards', true);
                 setElementVisibility('sellShipyardsButton', true);
@@ -1351,8 +1377,11 @@
             if (!gameState.massCapHit) {
                 if (gameState.matter > 1e+25) {
                     gameState.massCapHit = true;
-                    addLogMessage("You now have ten times as much mass as you need to completely envelop the sun in habitats. You are now able to repurpose your mining platforms to construct habitats.");
+                    addLogMessage("You now have ten times as much mass as you need to completely envelop the sun in habitats, and you shut down mining operations to focus on habitat production. You are now able to repurpose your mining platforms to construct habitats.");
                     setElementVisibility('repurposeMiningPlatformsButton', true);
+                    setElementVisibility('asteroidMiningButton', false);
+                    setElementVisibility('platform1Button', false);
+                    updateElement('massRate', `Mass rate: 0 tons/cycle`);
                 } else {
                     const mass = calculateMassRate() * timeDifference * speedMultiplier;
                     gameState.matter += mass;
@@ -1382,31 +1411,19 @@
 
         // Add shipyard production
         if (gameState.isSwarmCompany) {
-            const matterCost = gameState.satelliteCost; // Cost per cylinder
-            const maxPossibleProduction = Math.floor(gameState.matter / matterCost); // How many we can afford
-            const shipyardCapacity = gameState.shipyards * gameState.shipyardOutput; // How many we can produce
-            
-            // Create as many as we can afford, up to shipyard capacity
-            let actualProduction = Math.min(maxPossibleProduction, shipyardCapacity);
+            let massExpenditures = calculateMassExpenditures() * timeDifference * speedMultiplier;
 
-            if (gameState.volunteers) {
-                actualProduction *= Math.log10(gameState.humans);
-            }
-            
-            gameState.satellites += actualProduction;
-            gameState.matter -= (actualProduction * matterCost);
+            gameState.satellites += Math.floor(massExpenditures/gameState.satelliteCost);
+            gameState.matter -= massExpenditures;
 
-
-            updateElement('habitatProductionRate', `Habitat production rate: ${actualProduction < 1000000 ? actualProduction.toLocaleString() : actualProduction.toExponential(3)}/cycle`);
-
-            if (gameState.vonNeumann) {
-                gameState.miningPlatforms *= 1.01;
+            if (gameState.vonNeumann && !gameState.massCapHit) {
+                gameState.miningPlatforms = Math.floor(gameState.miningPlatforms * 1.01);
             }
             if (gameState.vonNeumann2) {
-                gameState.shipyards *= 1.01;
+                gameState.shipyards = Math.floor(gameState.shipyards * 1.01);
             }
 
-            gameState.humans = gameState.satellites * 200000;
+            gameState.humans = Math.floor(gameState.satellites * 200000);
             updateElement('humans', `Total humans: ${gameState.humans < 1000000 ? gameState.humans.toLocaleString() : gameState.humans.toExponential(3)}`);
 
             updateElement('miningPlatforms', `Mining platforms: ${gameState.miningPlatforms < 1000000 ? gameState.miningPlatforms.toLocaleString() : gameState.miningPlatforms.toExponential(3)}`);

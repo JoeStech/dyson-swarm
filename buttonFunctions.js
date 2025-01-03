@@ -654,13 +654,14 @@ export const BUTTON_CONFIG = {
     },
 
     repurposeMiningPlatformsButton: {
-        text: 'Repurpose mining platforms to produce habitats<br>cost: 1E23 tons<br>effect: converts all mining platforms to shipyards',
-        cost: 1e23,
+        text: 'Repurpose 1% of mining platforms to produce habitats<br>effect: converts 1% of mining platforms to shipyards',
+        cost: 0,
         cost_type: 'mass',
-        logMessage: "You have repurposed your mining platforms for habitat production. Your civilization is galvanized, knowing they are on the cusp of becoming a type two Kardeshev civilization.",
+        repeatable: true,
+        logMessage: "You have repurposed 1% of your mining platforms for habitat production. Your civilization is galvanized, knowing they are on the cusp of becoming a type two Kardeshev civilization.",
         action: (state) => {
-            state.shipyards += state.miningPlatforms;
-            state.miningPlatforms = 0;
+            state.shipyards += state.miningPlatforms * 0.01;
+            state.miningPlatforms = state.miningPlatforms * 0.99;
             return true;
         }
     },
